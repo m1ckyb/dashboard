@@ -26,7 +26,7 @@ body {
     transform: translateX(2px);
 }
 .status-tooltip {
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     color: green;
     opacity: 0;
     transition: opacity 0.2s ease;
@@ -36,14 +36,21 @@ body {
 .service-link:hover .status-tooltip {
     opacity: 1;
 }
+/* Date and Time styles */
+#date-element, #time-element {
+    position: absolute;
+    top: 0.5rem; /* aligned horizontally */
+    font-weight: 900;
+}
 </style>
 </head>
 <body class="min-h-screen flex flex-col">
 
-<div class="container mx-auto p-4 sm:p-6 md:p-10 lg:p-16 relative flex-1">
+<div class="flex-1 container mx-auto p-4 sm:p-6 md:p-10 lg:p-16 relative">
 
 <header class="relative mb-24 md:mb-32">
-    <div id="date-element" class="absolute top-0 left-0 text-base md:text-lg text-gray-600 font-black tracking-widest uppercase"></div>
+    <div id="date-element"></div>
+    <div id="time-element"></div>
     <div class="absolute top-4 left-2 transform -rotate-3">
         <h1 class="text-6xl md:text-8xl font-black text-gray-200 opacity-80 select-none">Home</h1>
     </div>
@@ -57,53 +64,55 @@ body {
 <main id="dashboard-layout" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-4 lg:gap-6">
 </main>
 
-</div> <!-- End of container -->
+</div>
 
-<footer class="text-gray-400 text-sm flex justify-between p-4 border-t border-gray-700">
+<footer class="text-gray-400 text-sm flex justify-between p-4 border-t border-gray-700 w-full">
     <div>Forked from <a href="https://github.com/lklynet/dashboard" target="_blank" class="underline hover:text-white">lklynet/dashboard</a></div>
-    <div>Vibe coded with ChatGPT</div>
-    <div><a href="https://github.com/m1ckyb/dashboard" target="_blank" class="underline hover:text-white">M1ckyb</a></div>
+    <div>Coded with the help of ChatGPT</div>
+    <div id="simple-dash-link" class="flex items-center"></div>
 </footer>
 
 <script>
 async function loadConfig() {
     try {
         const res = await fetch('config.json');
-        if (!res.ok) throw new Error('HTTP error ' + res.status);
         return await res.json();
     } catch (err) {
         console.error('Failed to load config.json', err);
-
-        // Create error banner
-        const container = document.querySelector('.container');
-        if (container) {
-            const banner = document.createElement('div');
-            banner.textContent = '⚠️ config.json not found. Please provide a valid configuration file.';
-            banner.className = 'bg-red-600 text-white font-bold p-3 mb-4 rounded text-center';
-            container.prepend(banner);
-        }
-
         return null;
     }
 }
 
-function updateDateTime(showTime, timeFormat) {
+function updateDateTime(config) {
     const dateElement = document.getElementById('date-element');
+    const timeElement = document.getElementById('time-element');
     const now = new Date();
-    const month = now.toLocaleString('default', { month: 'short' });
-    const day = String(now.getDate()).padStart(2,'0');
-    const year = now.getFullYear();
 
-    let time = '';
-    if (showTime) {
-        if(timeFormat === '12') {
-            time = now.toLocaleTimeString([], { hour: 'numeric', minute:'2-digit', second:'2-digit', hour12: true });
-        } else {
-            time = now.toLocaleTimeString([], { hour: '2-digit', minute:'2-digit', second:'2-digit', hour12: false });
-        }
+    // --- Date ---
+    if(config.time.showDate){
+        const month = now.toLocaleString('default', { month: 'short' });
+        const day = String(now.getDate()).padStart(2,'0');
+        const year = now.getFullYear();
+        dateElement.textContent = `${month}/${day}/${year}`;
+        dateElement.style.top = "0.5rem";
+        dateElement.style.left = config.time.datePosition === "left" ? "1rem" : "auto";
+        dateElement.style.right = config.time.datePosition === "right" ? "1rem" : "auto";
+        dateElement.className = config.theme.headingColor + " font-black tracking-widest uppercase text-base md:text-lg";
+    } else {
+        dateElement.textContent = "";
     }
 
-    dateElement.textContent = showTime ? `${month}/${day}/${year} ${time}` : `${month}/${day}/${year}`;
+    // --- Time ---
+    if(config.time.showTime){
+        const time = now.toLocaleTimeString([], {hour12: !config.time.is24Hour, hour:'2-digit', minute:'2-digit', second:'2-digit'});
+        timeElement.textContent = time;
+        timeElement.style.top = "0.5rem"; // same top as date for horizontal alignment
+        timeElement.style.left = config.time.timePosition === "left" ? "1rem" : "auto";
+        timeElement.style.right = config.time.timePosition === "right" ? "1rem" : "auto";
+        timeElement.className = config.theme.headingColor + " font-black tracking-widest uppercase text-base md:text-lg";
+    } else {
+        timeElement.textContent = "";
+    }
 }
 
 function checkPerformance(svc, badge, badgeStyles) {
@@ -124,16 +133,25 @@ function checkPerformance(svc, badge, badgeStyles) {
         });
 }
 
-function renderBookmarks(bookmarks, styles) {
+function renderBookmarks(bookmarks, theme) {
     const container = document.getElementById('bookmarks-container');
     const list = document.createElement('div');
     list.className = 'flex flex-row items-center justify-end space-x-2 md:space-x-4';
-    bookmarks.forEach(bm=>{
+    bookmarks.forEach((bm, idx) => {
         const a = document.createElement('a');
-        a.href=bm[1]; a.target='_blank'; a.rel='noopener noreferrer';
-        a.textContent=bm[0];
-        a.className = `text-base ${styles.text} hover:${styles.hover} hover:underline transition-colors duration-200`;
+        a.href = bm[1];
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.textContent = bm[0];
+        a.className = `text-base ${theme.bookmarks.text} hover:${theme.bookmarks.hover} hover:underline transition-colors duration-200`;
         list.appendChild(a);
+
+        if (idx < bookmarks.length - 1) {
+            const separator = document.createElement('span');
+            separator.textContent = ' // ';
+            separator.className = theme.headingColor;
+            list.appendChild(separator);
+        }
     });
     container.appendChild(list);
 }
@@ -153,7 +171,7 @@ function initializeDashboard(config) {
         wrapper.className = `space-y-1 ${blockClasses[idx] || ''}`;
 
         const title = document.createElement('h2');
-        title.className='text-lg text-gray-600 font-bold tracking-wider';
+        title.className = `text-lg font-bold tracking-wider ${config.theme.headingColor}`;
         title.textContent = `// ${cat.displayName}`;
         wrapper.appendChild(title);
 
@@ -163,7 +181,7 @@ function initializeDashboard(config) {
         cat.items.forEach(svc=>{
             const link = document.createElement('a');
             link.href = svc[1]; link.target='_blank'; link.rel='noopener noreferrer';
-            link.className = `service-link text-base md:text-lg font-semibold ${config.linkStyles.text} leading-tight`;
+            link.className = `service-link text-base md:text-lg font-semibold ${config.theme.link.text} leading-tight`;
             link.textContent = svc[0];
 
             const badge = document.createElement('span');
@@ -172,8 +190,8 @@ function initializeDashboard(config) {
             link.appendChild(badge);
 
             if(config.enablePerformance){
-                link.addEventListener('mouseenter', ()=>checkPerformance(svc,badge,config.badgeStyles));
-                setInterval(()=>checkPerformance(svc,badge,config.badgeStyles), config.pingInterval);
+                link.addEventListener('mouseenter', ()=>checkPerformance(svc,badge,config.theme.badge));
+                setInterval(()=>checkPerformance(svc,badge,config.theme.badge), config.pingInterval);
             }
 
             list.appendChild(link);
@@ -188,11 +206,33 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     const config = await loadConfig();
     if(!config) return;
 
-    updateDateTime(config.showTime, config.timeFormat);
-    setInterval(()=>updateDateTime(config.showTime, config.timeFormat), 1000);
+    // Update clock
+    updateDateTime(config);
+    setInterval(()=>updateDateTime(config),1000);
 
-    renderBookmarks(config.bookmarks, config.bookmarksStyles);
+    // Render bookmarks
+    renderBookmarks(config.bookmarks, config.theme);
+
+    // Initialize dashboard services
     initializeDashboard(config);
+
+    // Add dynamic Simple-Dash link with version
+    const simpleDashDiv = document.getElementById('simple-dash-link');
+
+    const a = document.createElement('a');
+    a.href = "https://github.com/m1ckyb/simple-dash";
+    a.target = "_blank";
+    a.className = "underline hover:text-white";
+    a.textContent = "Simple-Dash";
+
+    simpleDashDiv.appendChild(a);
+
+    if (config.version) {
+        const versionSpan = document.createElement('span');
+        versionSpan.className = "text-gray-400 ml-1";
+        versionSpan.textContent = `(${config.version})`;
+        simpleDashDiv.appendChild(versionSpan);
+    }
 });
 </script>
 
