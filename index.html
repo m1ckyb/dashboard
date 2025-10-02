@@ -26,7 +26,7 @@ body {
     transform: translateX(2px);
 }
 .status-tooltip {
-    font-size: 0.9rem;
+    font-size: 0.95rem;
     color: green;
     opacity: 0;
     transition: opacity 0.2s ease;
@@ -57,7 +57,7 @@ body {
 <main id="dashboard-layout" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-4 lg:gap-6">
 </main>
 
-</div> <!-- End of container with flex-1 -->
+</div> <!-- End of container -->
 
 <footer class="text-gray-400 text-sm flex justify-between p-4 border-t border-gray-700">
     <div>Forked from <a href="https://github.com/lklynet/dashboard" target="_blank" class="underline hover:text-white">lklynet/dashboard</a></div>
@@ -69,20 +69,40 @@ body {
 async function loadConfig() {
     try {
         const res = await fetch('config.json');
+        if (!res.ok) throw new Error('HTTP error ' + res.status);
         return await res.json();
     } catch (err) {
         console.error('Failed to load config.json', err);
+
+        // Create error banner
+        const container = document.querySelector('.container');
+        if (container) {
+            const banner = document.createElement('div');
+            banner.textContent = '⚠️ config.json not found. Please provide a valid configuration file.';
+            banner.className = 'bg-red-600 text-white font-bold p-3 mb-4 rounded text-center';
+            container.prepend(banner);
+        }
+
         return null;
     }
 }
 
-function updateDateTime(showTime) {
+function updateDateTime(showTime, timeFormat) {
     const dateElement = document.getElementById('date-element');
     const now = new Date();
     const month = now.toLocaleString('default', { month: 'short' });
     const day = String(now.getDate()).padStart(2,'0');
     const year = now.getFullYear();
-    const time = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+
+    let time = '';
+    if (showTime) {
+        if(timeFormat === '12') {
+            time = now.toLocaleTimeString([], { hour: 'numeric', minute:'2-digit', second:'2-digit', hour12: true });
+        } else {
+            time = now.toLocaleTimeString([], { hour: '2-digit', minute:'2-digit', second:'2-digit', hour12: false });
+        }
+    }
+
     dateElement.textContent = showTime ? `${month}/${day}/${year} ${time}` : `${month}/${day}/${year}`;
 }
 
@@ -168,8 +188,8 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     const config = await loadConfig();
     if(!config) return;
 
-    updateDateTime(config.showTime);
-    setInterval(()=>updateDateTime(config.showTime),1000);
+    updateDateTime(config.showTime, config.timeFormat);
+    setInterval(()=>updateDateTime(config.showTime, config.timeFormat), 1000);
 
     renderBookmarks(config.bookmarks, config.bookmarksStyles);
     initializeDashboard(config);
